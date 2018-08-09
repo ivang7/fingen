@@ -1,8 +1,9 @@
 package com.yoshione.fingen;
 
 import android.Manifest;
-import android.content.Context;
+import android.app.Application;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -36,10 +37,27 @@ import com.dropbox.core.v2.DbxClientV2;
 import com.dropbox.core.v2.files.FileMetadata;
 import com.dropbox.core.v2.files.Metadata;
 import com.dropbox.core.v2.users.FullAccount;
+import com.google.android.gms.auth.api.signin.GoogleSignIn;
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
+import com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes;
+import com.google.android.gms.common.api.ApiException;
+import com.google.android.gms.drive.Drive;
+import com.google.android.gms.drive.DriveClient;
+import com.google.android.gms.drive.DriveContents;
+import com.google.android.gms.drive.DriveFile;
+import com.google.android.gms.drive.DriveResourceClient;
+import com.google.android.gms.drive.MetadataBuffer;
+import com.google.android.gms.tasks.Continuation;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.android.gms.tasks.Task;
 import com.yoshione.fingen.dropbox.DropboxClient;
 import com.yoshione.fingen.dropbox.UploadTask;
 import com.yoshione.fingen.dropbox.UserAccountTask;
+import com.yoshione.fingen.googledrive.GoogleDriveClient;
 import com.yoshione.fingen.interfaces.IOnComplete;
+import com.yoshione.fingen.model.Settings;
 import com.yoshione.fingen.utils.DateTimeFormatter;
 import com.yoshione.fingen.utils.FabMenuController;
 import com.yoshione.fingen.utils.FileUtils;
@@ -48,6 +66,7 @@ import com.yoshione.fingen.widgets.ToolbarActivity;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
@@ -71,18 +90,23 @@ public class ActivityBackup extends ToolbarActivity {
     private static final int MSG_SHOW_DIALOG = 0;
     private static final int MSG_DOWNLOAD_FILE = 1;
 
+    private static final int GOOGLE_DRIVE_ACCEESS_REQUEST_CODE = 1000;
+
     @BindView(R.id.fabBackup)
     FloatingActionButton fabBackup;
     @BindView(R.id.fabRestore)
     FloatingActionButton fabRestore;
     @BindView(R.id.fabRestoreFromDropbox)
     FloatingActionButton fabRestoreFromDropbox;
+    @BindView(R.id.fabRestoreFromGoogleDrive)
+    FloatingActionButton fabRestoreFromGoogleDrive;
     @BindView(R.id.fabMenuButtonRoot)
     FloatingActionButton fabMenuButtonRoot;
     @BindView(R.id.switchCompatEnablePasswordProtection)
     SwitchCompat mSwitchCompatEnablePasswordProtection;
     @BindView(R.id.editTextPassword)
     EditText mEditTextPassword;
+
     @BindView(R.id.editTextDropboxAccount)
     EditText mEditTextDropboxAccount;
     @BindView(R.id.textInputLayoutDropboxAccount)
@@ -91,6 +115,16 @@ public class ActivityBackup extends ToolbarActivity {
     TextView mTextViewLastBackupToDropbox;
     @BindView(R.id.buttonLogoutFromDropbox)
     Button mButtonLogoutFromDropbox;
+
+    @BindView(R.id.editTextGoogleDriveAccount)
+    EditText mEditTextGoogleDriveAccount;
+    @BindView(R.id.textInputLayoutGoogleDriveAccount)
+    TextInputLayout mTextInputLayoutGoogleDriveAccount;
+    @BindView(R.id.textViewLastBackupToGoogleDrive)
+    TextView mTextViewLastBackupToGoogleDrive;
+    @BindView(R.id.buttonLogoutFromGoogleDrive)
+    Button mButtonLogoutFromGoogleDrive;
+
     @BindView(R.id.fabBGLayout)
     View fabBGLayout;
     @BindView(R.id.fabBackupLayout)
@@ -99,19 +133,25 @@ public class ActivityBackup extends ToolbarActivity {
     LinearLayout mFabRestoreLayout;
     @BindView(R.id.fabRestoreFromDropboxLayout)
     LinearLayout mFabRestoreFromDropboxLayout;
+    @BindView(R.id.fabRestoreFromGoogleDriveLayout)
+    LinearLayout mFabRestoreFromGoogleDriveLayout;
 
     private SharedPreferences prefs;
+    private Settings settings;
     private UpdateRwHandler mHandler;
     private FabMenuController mFabMenuController;
+    private GoogleDriveClient googleDriveClient;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         ButterKnife.bind(this);
         prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+        settings = new Settings(getApplicationContext());
         initFabMenu();
         initPasswordProtection();
         initDropbox();
+        initGoogleDrive();
         mHandler = new UpdateRwHandler(this);
     }
 
@@ -131,6 +171,99 @@ public class ActivityBackup extends ToolbarActivity {
         menu.findItem(R.id.action_go_home).setVisible(true);
         return true;
 
+    }
+
+    private void updateViewWithGoogleDriveAccount() {
+        if(googleDriveClient == null) {
+            this.mEditTextGoogleDriveAccount.setText("");
+        } else {
+            this.mEditTextGoogleDriveAccount.setText(googleDriveClient.getAccountDisplayName());
+        }
+        mButtonLogoutFromGoogleDrive.setVisibility(googleDriveClient == null ? View.GONE : View.VISIBLE);
+    }
+
+    private void setGoogleSignInAccount(GoogleSignInAccount account) {
+        if(account == null) {
+            googleDriveClient = null;
+        } else {
+            googleDriveClient = new GoogleDriveClient(ActivityBackup.this, account);
+        }
+        updateViewWithGoogleDriveAccount();
+    }
+
+    private void connectGoogleDrive() {
+        final Task<GoogleSignInAccount> task = GoogleDriveClient.silentSignIn(this.getBaseContext());
+        if (task.isSuccessful()) {
+            // There's immediate result available.
+            GoogleSignInAccount account = task.getResult();
+            setGoogleSignInAccount(account);
+        } else {
+            // There's no immediate result ready, displays some progress indicator and waits for the
+            // async callback.
+            //showProgressIndicator();
+            task.addOnCompleteListener(new OnCompleteListener() {
+                @Override
+                public void onComplete(Task task) {
+                    try {
+                        //hideProgressIndicator();
+                        GoogleSignInAccount account = (GoogleSignInAccount)task.getResult(ApiException.class);
+                        setGoogleSignInAccount(account);
+                    } catch (ApiException apiException) {
+                        // You can get from apiException.getStatusCode() the detailed error code
+                        // e.g. GoogleSignInStatusCodes.SIGN_IN_REQUIRED (code: 4) means user needs to take
+                        // explicit action to finish sign-in;
+                        // Please refer to GoogleSignInStatusCodes Javadoc for details
+                        //updateButtonsAndStatusFromErrorCode(apiException.getStatusCode());
+                        setGoogleSignInAccount(null);
+                    } catch(Throwable exception) {
+                        setGoogleSignInAccount(null);
+                    }
+                }
+            });
+        }
+    }
+
+    private void initGoogleDrive() {
+        this.mEditTextGoogleDriveAccount.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                GoogleDriveClient.signIn(ActivityBackup.this, GOOGLE_DRIVE_ACCEESS_REQUEST_CODE);
+            }
+        });
+
+        mButtonLogoutFromGoogleDrive.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Task<Void> signOutTask = GoogleDriveClient.signOut(ActivityBackup.this);
+                if(signOutTask.isSuccessful()) {
+                    setGoogleSignInAccount(null);
+                } else {
+                    signOutTask.addOnCompleteListener(new OnCompleteListener<Void>() {
+                        @Override
+                        public void onComplete(@NonNull Task<Void> task) {
+                            setGoogleSignInAccount(null);
+                        }
+                    });
+                }
+            }
+        });
+
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        switch (requestCode) {
+            case GOOGLE_DRIVE_ACCEESS_REQUEST_CODE:
+                // Called after user is signed in.
+                if (resultCode == RESULT_OK) {
+                    GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(this);
+                    setGoogleSignInAccount(account);
+                } else if(resultCode == RESULT_CANCELED) {
+
+                }
+                break;
+        }
     }
 
     private void initPasswordProtection() {
@@ -165,9 +298,8 @@ public class ActivityBackup extends ToolbarActivity {
     }
 
     private void initDropbox() {
-        getUserAccount();
-        final SharedPreferences dropboxPrefs = getSharedPreferences("com.yoshione.fingen.dropbox", Context.MODE_PRIVATE);
-        final String token = dropboxPrefs.getString("dropbox-token", null);
+        getDropboxUserAccount();
+        final String token = settings.getDropbox().getToken();
         mEditTextDropboxAccount.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -190,8 +322,7 @@ public class ActivityBackup extends ToolbarActivity {
                         }
                     }
                 });
-                dropboxPrefs.edit().remove("dropbox-token").apply();
-                dropboxPrefs.edit().remove(FgConst.PREF_DROPBOX_ACCOUNT).apply();
+                settings.getDropbox().removeAll();
                 initDropbox();
             }
         });
@@ -216,8 +347,7 @@ public class ActivityBackup extends ToolbarActivity {
         String accessToken = Auth.getOAuth2Token(); //generate Access Token
         if (accessToken != null) {
             //Store accessToken in SharedPreferences
-            SharedPreferences dropboxPrefs = getSharedPreferences("com.yoshione.fingen.dropbox", Context.MODE_PRIVATE);
-            dropboxPrefs.edit().putString("dropbox-token", accessToken).apply();
+            settings.getDropbox().setToken(accessToken);
         }
     }
 
@@ -225,13 +355,14 @@ public class ActivityBackup extends ToolbarActivity {
     public void onResume() {
         saveAccessToken();
         initDropbox();
+        //initGoogleDrive();
+        connectGoogleDrive();
         super.onResume();
     }
 
-    protected void getUserAccount() {
-        final SharedPreferences dropboxPrefs = getSharedPreferences("com.yoshione.fingen.dropbox", Context.MODE_PRIVATE);
-        mEditTextDropboxAccount.setText(dropboxPrefs.getString(FgConst.PREF_DROPBOX_ACCOUNT, ""));
-        String token = dropboxPrefs.getString("dropbox-token", null);
+    protected void getDropboxUserAccount() {
+        mEditTextDropboxAccount.setText(settings.getDropbox().getAccount());
+        String token = settings.getDropbox().getToken();
         if (token == null) return;
         new UserAccountTask(DropboxClient.getClient(token), new UserAccountTask.TaskDelegate() {
             @Override
@@ -241,7 +372,7 @@ public class ActivityBackup extends ToolbarActivity {
                 Log.d("User", account.getName().getDisplayName());
                 Log.d("User", account.getAccountType().name());
                 mEditTextDropboxAccount.setText(account.getEmail());
-                dropboxPrefs.edit().putString(FgConst.PREF_DROPBOX_ACCOUNT, account.getEmail()).apply();
+                settings.getDropbox().setAccount(account.getEmail());
             }
 
             @Override
@@ -252,7 +383,17 @@ public class ActivityBackup extends ToolbarActivity {
     }
 
     private void initFabMenu() {
-        mFabMenuController = new FabMenuController(fabMenuButtonRoot, fabBGLayout, this, mFabBackupLayout, mFabRestoreLayout, mFabRestoreFromDropboxLayout);
+        mFabMenuController = new FabMenuController(fabMenuButtonRoot, fabBGLayout, this, mFabBackupLayout, mFabRestoreLayout, mFabRestoreFromDropboxLayout, mFabRestoreFromGoogleDriveLayout);
+
+        mFabMenuController.setOnShowListener(new FabMenuController.OnShowListener() {
+            @Override
+            public boolean onShowRequest(View view) {
+                if(view == mFabRestoreFromDropboxLayout) return settings.getDropbox().getToken() != null;
+                if(view == mFabRestoreFromGoogleDriveLayout) return googleDriveClient != null;
+                return true;
+            }
+        });
+
         fabBackup.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -274,6 +415,13 @@ public class ActivityBackup extends ToolbarActivity {
                 mFabMenuController.closeFABMenu();
             }
         });
+        fabRestoreFromGoogleDrive.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                ActivityBackupPermissionsDispatcher.restoreDBFromGoogleDriveWithPermissionCheck((ActivityBackup) v.getContext());
+                mFabMenuController.closeFABMenu();
+            }
+        });
     }
 
     @Override
@@ -287,8 +435,7 @@ public class ActivityBackup extends ToolbarActivity {
 
     @NeedsPermission({Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE})
     void backupDB() {
-        SharedPreferences dropboxPrefs = getSharedPreferences("com.yoshione.fingen.dropbox", Context.MODE_PRIVATE);
-        String token = dropboxPrefs.getString("dropbox-token", null);
+        String token = settings.getDropbox().getToken();
         try {
             File zip = DBHelper.getInstance(getApplicationContext()).backupDB(true);
             if (token != null && zip != null) {
@@ -301,6 +448,20 @@ public class ActivityBackup extends ToolbarActivity {
                         initLastDropboxBackupField();
                     }
                 }).execute();
+            }
+            if(googleDriveClient != null) {
+                googleDriveClient.uploadFileAsync(zip)
+                        .addOnSuccessListener(new OnSuccessListener<DriveFile>() {
+                            @Override
+                            public void onSuccess(DriveFile driveFile) {
+                                Toast.makeText(ActivityBackup.this, "File uploaded successfully", Toast.LENGTH_SHORT).show();
+                            }
+                        }).addOnFailureListener(new OnFailureListener() {
+                            @Override
+                            public void onFailure(@NonNull Exception e) {
+                                Toast.makeText(ActivityBackup.this, "File uploaded failure", Toast.LENGTH_SHORT).show();
+                            }
+                        });
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -317,8 +478,7 @@ public class ActivityBackup extends ToolbarActivity {
         Thread t = new Thread(new Runnable() {
             @Override
             public void run() {
-                SharedPreferences dropboxPrefs = getApplicationContext().getSharedPreferences("com.yoshione.fingen.dropbox", Context.MODE_PRIVATE);
-                String token = dropboxPrefs.getString("dropbox-token", null);
+                String token = settings.getDropbox().getToken();
                 List<Metadata> metadataList;
                 List<MetadataItem> items = new ArrayList<>();
                 try {
@@ -335,6 +495,29 @@ public class ActivityBackup extends ToolbarActivity {
             }
         });
         t.start();
+    }
+
+    @NeedsPermission({Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE})
+    void restoreDBFromGoogleDrive() {
+        if(googleDriveClient != null) {
+            googleDriveClient.listFiles()
+                    .addOnSuccessListener(new OnSuccessListener<MetadataBuffer>() {
+                        @Override
+                        public void onSuccess(MetadataBuffer metadataBuffer) {
+                            List<GoogleDriveMetadataItem> items = new ArrayList<>();
+                            for(int i = 0; i < metadataBuffer.getCount(); i++) {
+                                items.add(new GoogleDriveMetadataItem(metadataBuffer.get(i)));
+                            }
+                            mHandler.sendMessage(mHandler.obtainMessage(MSG_SHOW_DIALOG, items));
+                        }
+                    }).addOnFailureListener(new OnFailureListener() {
+                        @Override
+                        public void onFailure(@NonNull Exception e) {
+                            Log.d(TAG, "Error read list of files from Dropbox");
+                        }
+                    });
+        }
+
     }
 
     @Override
@@ -410,8 +593,8 @@ public class ActivityBackup extends ToolbarActivity {
                     AlertDialog.Builder builderSingle = new AlertDialog.Builder(activity);
                     builderSingle.setTitle(activity.getResources().getString(R.string.ttl_select_db_file));
 
-                    final ArrayAdapter<MetadataItem> arrayAdapter = new ArrayAdapter<>(activity, android.R.layout.select_dialog_singlechoice);
-                    arrayAdapter.addAll((List<MetadataItem>) msg.obj);
+                    final ArrayAdapter<IMetadataItem> arrayAdapter = new ArrayAdapter<>(activity, android.R.layout.select_dialog_singlechoice);
+                    arrayAdapter.addAll((List<IMetadataItem>) msg.obj);
 
                     builderSingle.setNegativeButton(
                             activity.getResources().getString(android.R.string.cancel),
@@ -426,24 +609,66 @@ public class ActivityBackup extends ToolbarActivity {
                         @Override
                         public void onClick(DialogInterface dialog, int which) {
                             ListView lw = ((AlertDialog) dialog).getListView();
-                            final MetadataItem item = (MetadataItem) lw.getAdapter().getItem(which);
+                            final IMetadataItem item = (IMetadataItem) lw.getAdapter().getItem(which);
                             Thread thread = new Thread(new Runnable() {
                                 @Override
                                 public void run() {
-                                    File file = new File(activity.getCacheDir(), item.mMetadata.getName());
-                                    try {
-                                        OutputStream outputStream = new FileOutputStream(file);
-                                        SharedPreferences dropboxPrefs = activity.getSharedPreferences("com.yoshione.fingen.dropbox", Context.MODE_PRIVATE);
-                                        String token = dropboxPrefs.getString("dropbox-token", null);
-                                        DbxClientV2 dbxClient = DropboxClient.getClient(token);
-                                        dbxClient.files().download(item.mMetadata.getPathLower(), item.mMetadata.getRev())
-                                                .download(outputStream);
-                                        activity.mHandler.sendMessage(activity.mHandler.obtainMessage(MSG_DOWNLOAD_FILE, file));
-                                    } catch (DbxException e) {
-                                        e.printStackTrace();
-                                    } catch (IOException e) {
-                                        e.printStackTrace();
+                                    final File file = new File(activity.getCacheDir(), item.toString());
+
+                                    if(item instanceof MetadataItem) {
+                                        MetadataItem casted = (MetadataItem)item;
+                                        try {
+                                            OutputStream outputStream = new FileOutputStream(file);
+                                            Settings settings = new Settings(activity);
+                                            String token = settings.getDropbox().getToken();
+                                            DbxClientV2 dbxClient = DropboxClient.getClient(token);
+                                            dbxClient.files().download(casted.mMetadata.getPathLower(), casted.mMetadata.getRev())
+                                                    .download(outputStream);
+                                            activity.mHandler.sendMessage(activity.mHandler.obtainMessage(MSG_DOWNLOAD_FILE, file));
+                                        } catch (DbxException e) {
+                                            e.printStackTrace();
+                                        } catch (IOException e) {
+                                            e.printStackTrace();
+                                        }
+                                    } else if(item instanceof GoogleDriveMetadataItem) {
+                                        final GoogleDriveMetadataItem casted = (GoogleDriveMetadataItem)item;
+                                        try {
+                                            final OutputStream outputStream = new FileOutputStream(file);
+
+                                            final GoogleDriveClient[] client = new GoogleDriveClient[1];
+
+                                            GoogleDriveClient.silentSignIn(FGApplication.getContext())
+                                                    .continueWithTask(new Continuation<GoogleSignInAccount, Task<DriveContents>>() {
+                                                        @Override
+                                                        public Task<DriveContents> then(@NonNull Task<GoogleSignInAccount> task) throws Exception {
+                                                            GoogleSignInAccount account = task.getResult();
+                                                            client[0] = new GoogleDriveClient(FGApplication.getContext(), account);
+                                                            return client[0].getFileContent(casted.mMetadata);
+                                                        }
+                                                    }).continueWithTask(new Continuation<DriveContents, Task<Void>>() {
+                                                        @Override
+                                                        public Task<Void> then(@NonNull Task<DriveContents> task) throws Exception {
+                                                            DriveContents driveContents = task.getResult();
+                                                            InputStream inputStream = driveContents.getInputStream();
+                                                            GoogleDriveClient.copyStream(inputStream, outputStream);
+                                                            return client[0].discardContents(driveContents);
+                                                        }
+                                                    }).addOnSuccessListener(new OnSuccessListener<Void>() {
+                                                        @Override
+                                                        public void onSuccess(Void aVoid) {
+                                                            activity.mHandler.sendMessage(activity.mHandler.obtainMessage(MSG_DOWNLOAD_FILE, file));
+                                                        }
+                                                    }).addOnFailureListener(new OnFailureListener() {
+                                                        @Override
+                                                        public void onFailure(@NonNull Exception e) {
+                                                            e.printStackTrace();
+                                                        }
+                                                    });
+                                        } catch (IOException e) {
+                                            e.printStackTrace();
+                                        }
                                     }
+
                                 }
                             });
                             thread.start();
@@ -462,7 +687,11 @@ public class ActivityBackup extends ToolbarActivity {
         }
     }
 
-    private class MetadataItem {
+    private interface IMetadataItem {
+        String toString();
+    }
+
+    private class MetadataItem implements IMetadataItem {
         private FileMetadata mMetadata;
 
         public MetadataItem(FileMetadata metadata) {
@@ -471,6 +700,18 @@ public class ActivityBackup extends ToolbarActivity {
 
         public String toString() {
             return mMetadata.getName();
+        }
+    }
+
+    private class GoogleDriveMetadataItem implements IMetadataItem {
+        private com.google.android.gms.drive.Metadata mMetadata;
+
+        public GoogleDriveMetadataItem(com.google.android.gms.drive.Metadata metadata) {
+            mMetadata = metadata;
+        }
+
+        public String toString() {
+            return mMetadata.getTitle();
         }
     }
 

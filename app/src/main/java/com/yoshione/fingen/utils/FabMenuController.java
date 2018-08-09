@@ -11,6 +11,11 @@ import java.util.Arrays;
 import java.util.List;
 
 public class FabMenuController {
+
+    public interface OnShowListener {
+        boolean onShowRequest(View view);
+    }
+
     private static final int ANIM_DURATION = 100;
 
     private FloatingActionButton mRoot;
@@ -19,6 +24,7 @@ public class FabMenuController {
     private View mFabBGLayout;
     private Activity mActivity;
     private boolean isFABOpen = false;
+    private OnShowListener onShowListener;
 
     public FabMenuController(FloatingActionButton root, View fabBGLayout, Activity activity, View... chidren) {
         mRoot = root;
@@ -59,14 +65,24 @@ public class FabMenuController {
     public void showFABMenu() {
         isFABOpen = true;
         for (View v : mChildren) {
-            v.setVisibility(View.VISIBLE);
+            if(onShowListener != null) {
+                boolean need = onShowListener.onShowRequest(v);
+                v.setVisibility(need ? View.VISIBLE : View.GONE);
+            } else {
+                v.setVisibility(View.VISIBLE);
+            }
         }
 
         mRoot.animate().setDuration(ANIM_DURATION).rotationBy(-180);
         int offset = 75;
         int step = 55;
-        for (int i = 0; i < mChildren.size(); i++) {
-            mChildren.get(i).animate().setDuration(ANIM_DURATION).translationY(-ScreenUtils.dpToPx(offset + step * i, mActivity));
+
+        int i = 0;
+        for (int index = 0; index < mChildren.size(); index++) {
+            if(mChildren.get(index).getVisibility() == View.VISIBLE) {
+                mChildren.get(index).animate().setDuration(ANIM_DURATION).translationY(-ScreenUtils.dpToPx(offset + step * i, mActivity));
+                i++;
+            }
         }
 
         mFabBGLayout.setAlpha(0);
@@ -117,5 +133,9 @@ public class FabMenuController {
 
     public boolean isFABOpen() {
         return isFABOpen;
+    }
+
+    public void setOnShowListener(OnShowListener listener) {
+        onShowListener = listener;
     }
 }
