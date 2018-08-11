@@ -1247,6 +1247,10 @@
 
     <!-- 16. Backup & Restore -->
     <!-- Titles -->
+    <string name="ttl_last_backup_to_google_drive" formatted="false">Последнее сохранение в Google Drive:</string>
+
+    <!-- 16. Backup & Restore -->
+    <!-- Titles -->
     <string name="ttl_auto_backup_info" formatted="false">Резервные копии создаются автоматически и сохраняются на карте памяти в папке Fingen/\Backup</string>
 
     <!-- 16. Backup & Restore -->

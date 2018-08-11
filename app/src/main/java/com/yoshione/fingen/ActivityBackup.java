@@ -1,7 +1,6 @@
 package com.yoshione.fingen;
 
 import android.Manifest;
-import android.app.Application;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -39,13 +38,9 @@ import com.dropbox.core.v2.files.Metadata;
 import com.dropbox.core.v2.users.FullAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
-import com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes;
 import com.google.android.gms.common.api.ApiException;
-import com.google.android.gms.drive.Drive;
-import com.google.android.gms.drive.DriveClient;
 import com.google.android.gms.drive.DriveContents;
 import com.google.android.gms.drive.DriveFile;
-import com.google.android.gms.drive.DriveResourceClient;
 import com.google.android.gms.drive.MetadataBuffer;
 import com.google.android.gms.tasks.Continuation;
 import com.google.android.gms.tasks.OnCompleteListener;
@@ -173,13 +168,118 @@ public class ActivityBackup extends ToolbarActivity {
 
     }
 
-    private void updateViewWithGoogleDriveAccount() {
-        if(googleDriveClient == null) {
-            this.mEditTextGoogleDriveAccount.setText("");
+    //region Dropbox
+
+    private void initDropbox() {
+        getDropboxUserAccount();
+        final String token = settings.getDropbox().getToken();
+        mEditTextDropboxAccount.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if (token == null) {
+                    Auth.startOAuth2Authentication(ActivityBackup.this, getString(R.string.DROPBOX_APP_KEY));
+                }
+            }
+        });
+        mButtonLogoutFromDropbox.setVisibility(token == null ? View.GONE : View.VISIBLE);
+        mButtonLogoutFromDropbox.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                AsyncTask.execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            DropboxClient.getClient(token).auth().tokenRevoke();
+                        } catch (DbxException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                });
+                settings.getDropbox().removeAll();
+                initDropbox();
+            }
+        });
+        initLastDropboxBackupField();
+    }
+
+    private void initLastDropboxBackupField() {
+        Date lastDate = settings.getDropbox().getLastSuccessfulBackupDate();
+        String title = getString(R.string.ttl_last_backup_to_dropbox);
+        if (lastDate == null) {
+            title = String.format("%s -", title);
         } else {
-            this.mEditTextGoogleDriveAccount.setText(googleDriveClient.getAccountDisplayName());
+            DateTimeFormatter dtf = DateTimeFormatter.getInstance(this);
+            title = String.format("%s %s %s", title, dtf.getDateMediumString(lastDate), dtf.getTimeShortString(lastDate));
         }
+        mTextViewLastBackupToDropbox.setText(title);
+    }
+
+    protected void getDropboxUserAccount() {
+        mEditTextDropboxAccount.setText(settings.getDropbox().getAccount());
+        String token = settings.getDropbox().getToken();
+        if (token == null) return;
+        new UserAccountTask(DropboxClient.getClient(token), new UserAccountTask.TaskDelegate() {
+            @Override
+            public void onAccountReceived(FullAccount account) {
+                //Print account's info
+                Log.d("User", account.getEmail());
+                Log.d("User", account.getName().getDisplayName());
+                Log.d("User", account.getAccountType().name());
+                mEditTextDropboxAccount.setText(account.getEmail());
+                settings.getDropbox().setAccount(account.getEmail());
+            }
+
+            @Override
+            public void onError(Exception error) {
+                Log.d("User", "Error receiving account details.");
+            }
+        }).execute();
+    }
+
+    @NeedsPermission({Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE})
+    void restoreDBFromDropbox() {
+        Thread t = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                String token = settings.getDropbox().getToken();
+                List<Metadata> metadataList;
+                List<MetadataItem> items = new ArrayList<>();
+                try {
+                    metadataList = DropboxClient.getListFiles(DropboxClient.getClient(token));
+                    for (int i = metadataList.size() - 1; i >= 0; i--) {
+                        if (metadataList.get(i).getName().toLowerCase().contains(".zip")) {
+                            items.add(new MetadataItem((FileMetadata) metadataList.get(i)));
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.d(TAG, "Error read list of files from Dropbox");
+                }
+                mHandler.sendMessage(mHandler.obtainMessage(MSG_SHOW_DIALOG, items));
+            }
+        });
+        t.start();
+    }
+
+    //endregion
+
+    //region Google Drive
+
+    private void initLastGoogleDriveBackupField() {
+        Date lastDate = settings.getGoogleDrive().getLastSuccessfulBackupDate();
+        String title = getString(R.string.ttl_last_backup_to_google_drive);
+        if (lastDate == null) {
+            title = String.format("%s -", title);
+        } else {
+            DateTimeFormatter dtf = DateTimeFormatter.getInstance(this);
+            title = String.format("%s %s %s", title, dtf.getDateMediumString(lastDate), dtf.getTimeShortString(lastDate));
+        }
+        mTextViewLastBackupToGoogleDrive.setText(title);
+    }
+
+    private void updateViewWithGoogleDriveAccount() {
+        this.mEditTextGoogleDriveAccount.setText(googleDriveClient == null ? "" : googleDriveClient.getAccountDisplayName());
         mButtonLogoutFromGoogleDrive.setVisibility(googleDriveClient == null ? View.GONE : View.VISIBLE);
+        initLastGoogleDriveBackupField();
     }
 
     private void setGoogleSignInAccount(GoogleSignInAccount account) {
@@ -192,7 +292,7 @@ public class ActivityBackup extends ToolbarActivity {
     }
 
     private void connectGoogleDrive() {
-        final Task<GoogleSignInAccount> task = GoogleDriveClient.silentSignIn(this.getBaseContext());
+        final Task<GoogleSignInAccount> task = GoogleDriveClient.silentSignIn(ActivityBackup.this);
         if (task.isSuccessful()) {
             // There's immediate result available.
             GoogleSignInAccount account = task.getResult();
@@ -201,7 +301,7 @@ public class ActivityBackup extends ToolbarActivity {
             // There's no immediate result ready, displays some progress indicator and waits for the
             // async callback.
             //showProgressIndicator();
-            task.addOnCompleteListener(new OnCompleteListener() {
+            task.addOnCompleteListener(new OnCompleteListener<GoogleSignInAccount>() {
                 @Override
                 public void onComplete(Task task) {
                     try {
@@ -247,8 +347,32 @@ public class ActivityBackup extends ToolbarActivity {
                 }
             }
         });
+    }
+
+    @NeedsPermission({Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE})
+    void restoreDBFromGoogleDrive() {
+        if(googleDriveClient != null) {
+            googleDriveClient.listFiles()
+                    .addOnSuccessListener(new OnSuccessListener<MetadataBuffer>() {
+                        @Override
+                        public void onSuccess(MetadataBuffer metadataBuffer) {
+                            List<GoogleDriveMetadataItem> items = new ArrayList<>();
+                            for(int i = 0; i < metadataBuffer.getCount(); i++) {
+                                items.add(new GoogleDriveMetadataItem(metadataBuffer.get(i)));
+                            }
+                            mHandler.sendMessage(mHandler.obtainMessage(MSG_SHOW_DIALOG, items));
+                        }
+                    }).addOnFailureListener(new OnFailureListener() {
+                @Override
+                public void onFailure(@NonNull Exception e) {
+                    Log.d(TAG, "Error read list of files from Google Drive");
+                }
+            });
+        }
 
     }
+
+    //endregion
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -260,7 +384,6 @@ public class ActivityBackup extends ToolbarActivity {
                     GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(this);
                     setGoogleSignInAccount(account);
                 } else if(resultCode == RESULT_CANCELED) {
-
                 }
                 break;
         }
@@ -297,52 +420,6 @@ public class ActivityBackup extends ToolbarActivity {
         });
     }
 
-    private void initDropbox() {
-        getDropboxUserAccount();
-        final String token = settings.getDropbox().getToken();
-        mEditTextDropboxAccount.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                if (token == null) {
-                    Auth.startOAuth2Authentication(ActivityBackup.this, getString(R.string.DROPBOX_APP_KEY));
-                }
-            }
-        });
-        mButtonLogoutFromDropbox.setVisibility(token == null ? View.GONE : View.VISIBLE);
-        mButtonLogoutFromDropbox.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                AsyncTask.execute(new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            DropboxClient.getClient(token).auth().tokenRevoke();
-                        } catch (DbxException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                });
-                settings.getDropbox().removeAll();
-                initDropbox();
-            }
-        });
-        initLastDropboxBackupField();
-    }
-
-    private void initLastDropboxBackupField() {
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
-        Long dateLong = preferences.getLong(FgConst.PREF_SHOW_LAST_SUCCESFUL_BACKUP_TO_DROPBOX, 0);
-        String title = getString(R.string.ttl_last_backup_to_dropbox);
-        if (dateLong == 0) {
-            title = String.format("%s -", title);
-        } else {
-            Date date = new Date(dateLong);
-            DateTimeFormatter dtf = DateTimeFormatter.getInstance(this);
-            title = String.format("%s %s %s", title, dtf.getDateMediumString(date), dtf.getTimeShortString(date));
-        }
-        mTextViewLastBackupToDropbox.setText(title);
-    }
-
     public void saveAccessToken() {
         String accessToken = Auth.getOAuth2Token(); //generate Access Token
         if (accessToken != null) {
@@ -358,28 +435,6 @@ public class ActivityBackup extends ToolbarActivity {
         //initGoogleDrive();
         connectGoogleDrive();
         super.onResume();
-    }
-
-    protected void getDropboxUserAccount() {
-        mEditTextDropboxAccount.setText(settings.getDropbox().getAccount());
-        String token = settings.getDropbox().getToken();
-        if (token == null) return;
-        new UserAccountTask(DropboxClient.getClient(token), new UserAccountTask.TaskDelegate() {
-            @Override
-            public void onAccountReceived(FullAccount account) {
-                //Print account's info
-                Log.d("User", account.getEmail());
-                Log.d("User", account.getName().getDisplayName());
-                Log.d("User", account.getAccountType().name());
-                mEditTextDropboxAccount.setText(account.getEmail());
-                settings.getDropbox().setAccount(account.getEmail());
-            }
-
-            @Override
-            public void onError(Exception error) {
-                Log.d("User", "Error receiving account details.");
-            }
-        }).execute();
     }
 
     private void initFabMenu() {
@@ -443,18 +498,19 @@ public class ActivityBackup extends ToolbarActivity {
                     @Override
                     public void onComplete() {
                         Toast.makeText(ActivityBackup.this, "File uploaded successfully", Toast.LENGTH_SHORT).show();
-                        SharedPreferences preferences = android.support.v7.preference.PreferenceManager.getDefaultSharedPreferences(ActivityBackup.this);
-                        preferences.edit().putLong(FgConst.PREF_SHOW_LAST_SUCCESFUL_BACKUP_TO_DROPBOX, new Date().getTime()).apply();
+                        settings.getDropbox().setLastSuccessfulBackupDate(new Date());
                         initLastDropboxBackupField();
                     }
                 }).execute();
             }
-            if(googleDriveClient != null) {
-                googleDriveClient.uploadFileAsync(zip)
-                        .addOnSuccessListener(new OnSuccessListener<DriveFile>() {
+            if(googleDriveClient != null && zip != null) {
+                googleDriveClient.uploadFileAsync(zip, true)
+                        .addOnSuccessListener(new OnSuccessListener<Void>() {
                             @Override
-                            public void onSuccess(DriveFile driveFile) {
+                            public void onSuccess(Void aVoid) {
                                 Toast.makeText(ActivityBackup.this, "File uploaded successfully", Toast.LENGTH_SHORT).show();
+                                settings.getGoogleDrive().setLastSuccessfulBackupDate(new Date());
+                                initLastGoogleDriveBackupField();
                             }
                         }).addOnFailureListener(new OnFailureListener() {
                             @Override
@@ -471,53 +527,6 @@ public class ActivityBackup extends ToolbarActivity {
     @NeedsPermission({Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE})
     void restoreDB() {
         new FileSelectDialog(this).showSelectBackupDialog();
-    }
-
-    @NeedsPermission({Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE})
-    void restoreDBFromDropbox() {
-        Thread t = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                String token = settings.getDropbox().getToken();
-                List<Metadata> metadataList;
-                List<MetadataItem> items = new ArrayList<>();
-                try {
-                    metadataList = DropboxClient.getListFiles(DropboxClient.getClient(token));
-                    for (int i = metadataList.size() - 1; i >= 0; i--) {
-                        if (metadataList.get(i).getName().toLowerCase().contains(".zip")) {
-                            items.add(new MetadataItem((FileMetadata) metadataList.get(i)));
-                        }
-                    }
-                } catch (Exception e) {
-                    Log.d(TAG, "Error read list of files from Dropbox");
-                }
-                mHandler.sendMessage(mHandler.obtainMessage(MSG_SHOW_DIALOG, items));
-            }
-        });
-        t.start();
-    }
-
-    @NeedsPermission({Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE})
-    void restoreDBFromGoogleDrive() {
-        if(googleDriveClient != null) {
-            googleDriveClient.listFiles()
-                    .addOnSuccessListener(new OnSuccessListener<MetadataBuffer>() {
-                        @Override
-                        public void onSuccess(MetadataBuffer metadataBuffer) {
-                            List<GoogleDriveMetadataItem> items = new ArrayList<>();
-                            for(int i = 0; i < metadataBuffer.getCount(); i++) {
-                                items.add(new GoogleDriveMetadataItem(metadataBuffer.get(i)));
-                            }
-                            mHandler.sendMessage(mHandler.obtainMessage(MSG_SHOW_DIALOG, items));
-                        }
-                    }).addOnFailureListener(new OnFailureListener() {
-                        @Override
-                        public void onFailure(@NonNull Exception e) {
-                            Log.d(TAG, "Error read list of files from Dropbox");
-                        }
-                    });
-        }
-
     }
 
     @Override

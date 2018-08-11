@@ -22,6 +22,7 @@ import com.google.android.gms.drive.query.Filters;
 import com.google.android.gms.drive.query.Query;
 import com.google.android.gms.drive.query.SearchableField;
 import com.google.android.gms.tasks.Continuation;
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
 
@@ -30,17 +31,18 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.concurrent.Callable;
 
 public class GoogleDriveClient {
 
     GoogleSignInAccount account;
     DriveClient mDriveClient;
     DriveResourceClient driveResourceClient;
-    Context context;
+    //Context context;
 
     public GoogleDriveClient(Context context, GoogleSignInAccount account) {
         if(account == null) return;
-        this.context = context;
+        //this.context = context;
         this.account = account;
         mDriveClient = Drive.getDriveClient(context, account);
         driveResourceClient = Drive.getDriveResourceClient(context, account);
@@ -52,6 +54,14 @@ public class GoogleDriveClient {
 
     public Task<MetadataBuffer> listFiles() {
         Query query = new Query.Builder()
+                .addFilter(Filters.eq(SearchableField.MIME_TYPE, "application/zip"))
+                .build();
+        return driveResourceClient.query(query);
+    }
+
+    public Task<MetadataBuffer> findFile(String fileName) {
+        Query query = new Query.Builder()
+                .addFilter(Filters.eq(SearchableField.TITLE, fileName))
                 .addFilter(Filters.eq(SearchableField.MIME_TYPE, "application/zip"))
                 .build();
         return driveResourceClient.query(query);
@@ -75,30 +85,76 @@ public class GoogleDriveClient {
         }
     }
 
-    public Task<DriveFile> uploadFileAsync(final File file) {
+    private Task<Void> rewriteContents(DriveFile driveFile, final File file) {
+        Task<DriveContents> openTask = driveResourceClient.openFile(driveFile, DriveFile.MODE_WRITE_ONLY);
+        return openTask.continueWithTask(new Continuation<DriveContents, Task<Void>>() {
+            @Override
+            public Task<Void> then(@NonNull Task<DriveContents> task) throws Exception {
+                DriveContents driveContents = task.getResult();
+                try (InputStream inputStream = new FileInputStream(file);
+                     OutputStream outputStream = driveContents.getOutputStream()) {
+                    copyStream(inputStream, outputStream);
+                }
+
+                Task<Void> commitTask = driveResourceClient.commitContents(driveContents, null);
+                return commitTask;
+            }
+        });
+    }
+
+    private Task<Void> createContents(final File file) {
         final Task<DriveFolder> appFolderTask = driveResourceClient.getAppFolder();
         final Task<DriveContents> createContentsTask = driveResourceClient.createContents();
+
         return Tasks.whenAll(appFolderTask, createContentsTask)
-            .continueWithTask(new Continuation<Void, Task<DriveFile>>() {
-                @Override
-                public Task<DriveFile> then(@NonNull Task<Void> task) throws Exception {
-                    DriveFolder parent = appFolderTask.getResult();
-                    DriveContents contents = createContentsTask.getResult();
+                .continueWithTask(new Continuation<Void, Task<Void>>() {
+                    @Override
+                    public Task<Void> then(@NonNull Task<Void> task) throws Exception {
+                        DriveFolder parent = appFolderTask.getResult();
+                        DriveContents contents = createContentsTask.getResult();
 
-                    try(InputStream inputStream = new FileInputStream(file);
-                        OutputStream outputStream = contents.getOutputStream()) {
-                        copyStream(inputStream, outputStream);
+                        try(InputStream inputStream = new FileInputStream(file);
+                            OutputStream outputStream = contents.getOutputStream()) {
+                            copyStream(inputStream, outputStream);
+                        }
+
+                        MetadataChangeSet changeSet = new MetadataChangeSet.Builder()
+                                .setTitle(file.getName())
+                                .setMimeType("application/zip")
+                                .setStarred(false)
+                                .build();
+
+                        return driveResourceClient.createFile(parent, changeSet, contents)
+                                .continueWithTask(new Continuation<DriveFile, Task<Void>>() {
+                                    @Override
+                                    public Task<Void> then(Task<DriveFile> task) throws Exception {
+                                        return Tasks.forResult(null);
+                                    }
+                                });
                     }
+                });
+    }
 
-                    MetadataChangeSet changeSet = new MetadataChangeSet.Builder()
-                            .setTitle(file.getName())
-                            .setMimeType("application/zip")
-                            .setStarred(true)
-                            .build();
+    public Task<Void> uploadFileAsync(final File file, final boolean overwrite) {
 
-                    return driveResourceClient.createFile(parent, changeSet, contents);
-                }
-            });
+        if(overwrite) {
+            return findFile(file.getName())
+                    .continueWithTask(new Continuation<MetadataBuffer, Task<Void>>() {
+                        @Override
+                        public Task<Void> then(Task<MetadataBuffer> task) throws Exception {
+                            MetadataBuffer metadataBuffer = task.getResult();
+                            for(Metadata data : metadataBuffer) {
+                                if(data.getTitle().equals(file.getName())){
+                                    DriveFile driveFile = data.getDriveId().asDriveFile();
+                                    return rewriteContents(driveFile, file);
+                                }
+                            }
+                            return createContents(file);
+                        }
+                    });
+        } else {
+            return createContents(file);
+        }
     }
 
     public static Task<GoogleSignInAccount> silentSignIn(Context context) {

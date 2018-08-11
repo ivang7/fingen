@@ -1247,6 +1247,10 @@
 
     <!-- 16. Backup & Restore -->
     <!-- Titles -->
+    <string name="ttl_last_backup_to_google_drive" formatted="false">Last Google Drive backup:</string>
+
+    <!-- 16. Backup & Restore -->
+    <!-- Titles -->
     <string name="ttl_auto_backup_info" formatted="false">Backups are created automatically and stored to the memory card in Fingen/\Backup</string>
 
     <!-- 16. Backup & Restore -->

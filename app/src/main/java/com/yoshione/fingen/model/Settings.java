@@ -5,6 +5,8 @@ import android.content.SharedPreferences;
 
 import com.yoshione.fingen.FgConst;
 
+import java.util.Date;
+
 public class Settings {
 
     public class Dropbox {
@@ -14,6 +16,7 @@ public class Settings {
 
         private final String ACCOUNT_KEY = FgConst.PREF_DROPBOX_ACCOUNT;
         private final String TOKEN_KEY = "dropbox-token";
+        private final String LAST_SUCCESSFUL_BACKUP_DATE_KEY = FgConst.PREF_SHOW_LAST_SUCCESFUL_BACKUP_TO_DROPBOX;
 
         public Dropbox(Context context) {
             prefs = context.getSharedPreferences(PREF_KEY, Context.MODE_PRIVATE);
@@ -43,9 +46,27 @@ public class Settings {
             prefs.edit().remove(TOKEN_KEY).apply();
         }
 
+        public Date getLastSuccessfulBackupDate() {
+            Long dateLong = prefs.getLong(LAST_SUCCESSFUL_BACKUP_DATE_KEY, 0);
+            if(dateLong == 0) return null;
+            return new Date(dateLong);
+        }
+
+        public void setLastSuccessfulBackupDate(Date value) {
+            Long dateLong = value == null ? 0 : value.getTime();
+            prefs.edit().putLong(LAST_SUCCESSFUL_BACKUP_DATE_KEY, dateLong).apply();
+        }
+
+        public void removeLastSuccessfulBackupDate() {
+            prefs.edit().remove(LAST_SUCCESSFUL_BACKUP_DATE_KEY).apply();
+        }
+
+
+
         public void removeAll() {
             removeAccount();
             removeToken();
+            removeLastSuccessfulBackupDate();
         }
     }
 
@@ -54,8 +75,9 @@ public class Settings {
 
         private final String PREF_KEY = "com.yoshione.fingen.googledrive";
 
-        private final String ACCOUNT_KEY = "googledrive_account";
-        private final String TOKEN_KEY = "googledrive-token";
+        private final String ACCOUNT_KEY = "google-drive-account";
+        private final String TOKEN_KEY = "google-drive-token";
+        private final String LAST_SUCCESSFUL_BACKUP_DATE_KEY = FgConst.PREF_SHOW_LAST_SUCCESSFUL_BACKUP_TO_GOOGLE_DRIVE;
 
         public GoogleDrive(Context context) {
             prefs = context.getSharedPreferences(PREF_KEY, Context.MODE_PRIVATE);
@@ -85,9 +107,26 @@ public class Settings {
             prefs.edit().remove(TOKEN_KEY).apply();
         }
 
+        public Date getLastSuccessfulBackupDate() {
+            Long dateLong = prefs.getLong(LAST_SUCCESSFUL_BACKUP_DATE_KEY, 0);
+            if(dateLong == 0) return null;
+            return new Date(dateLong);
+        }
+
+        public void setLastSuccessfulBackupDate(Date value) {
+            Long dateLong = value == null ? 0 : value.getTime();
+            prefs.edit().putLong(LAST_SUCCESSFUL_BACKUP_DATE_KEY, dateLong).apply();
+        }
+
+        public void removeLastSuccessfulBackupDate() {
+            prefs.edit().remove(LAST_SUCCESSFUL_BACKUP_DATE_KEY).apply();
+        }
+
+
         public void removeAll() {
             removeAccount();
             removeToken();
+            removeLastSuccessfulBackupDate();
         }
     }
 
