@@ -1203,7 +1203,15 @@
 
     <!-- 16. Backup & Restore -->
     <!-- Actions -->
+    <string name="act_restore_from_googledrive" formatted="false">Restore DB from Google Drive</string>
+
+    <!-- 16. Backup & Restore -->
+    <!-- Actions -->
     <string name="act_logout_from_dropbox" formatted="false">Logout from Dropbox</string>
+
+    <!-- 16. Backup & Restore -->
+    <!-- Actions -->
+    <string name="act_logout_from_googledrive" formatted="false">Logout from Google Drive</string>
 
     <!-- 16. Backup & Restore -->
     <!-- Titles -->
@@ -1227,11 +1235,19 @@
 
     <!-- 16. Backup & Restore -->
     <!-- Titles -->
+    <string name="ttl_googledrive_account" formatted="false">Google Drive account</string>
+
+    <!-- 16. Backup & Restore -->
+    <!-- Titles -->
     <string name="ttl_enter_password" formatted="false">Enter password</string>
 
     <!-- 16. Backup & Restore -->
     <!-- Titles -->
     <string name="ttl_last_backup_to_dropbox" formatted="false">Last Dropbox backup:</string>
+
+    <!-- 16. Backup & Restore -->
+    <!-- Titles -->
+    <string name="ttl_last_backup_to_google_drive" formatted="false">Last Google Drive backup:</string>
 
     <!-- 16. Backup & Restore -->
     <!-- Titles -->

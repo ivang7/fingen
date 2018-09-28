@@ -33,6 +33,7 @@ public class FgConst {
     public static final String PREF_FORCE_UPDATE_TRANSACTIONS = "force_update_transaction";
     public static final String PREF_SHOW_CLOSED_ACCOUNTS = "show_closed_accounts";
     public static final String PREF_SHOW_LAST_SUCCESFUL_BACKUP_TO_DROPBOX = "last_succesful_backup_to_dropbox";
+    public static final String PREF_SHOW_LAST_SUCCESSFUL_BACKUP_TO_GOOGLE_DRIVE = "last_succesful_backup_to_google_drive";
 //    public static final String PREF_SHOW_SHOW_ACCOUNTS_PANEL = "show_accounts_panel";
     public static final String PREF_START_TAB = "start_tab";
     public static final String PREF_SWITCH_TAB_ON_START = "switch_tab_on_start";
