@@ -65,7 +65,7 @@ public class DateRangeFilter extends AbstractFilter implements Parcelable {
         this.mInverted = in.readByte() != 0;
     }
 
-    private static int getFirstDayOfWeek(Context context) {
+    public static int getFirstDayOfWeek(Context context) {
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
         String s = preferences.getString(FgConst.PREF_FIRST_DAY_OF_WEEK, FgConst.PREF_VALUE_MONDAY);
         if (s.equals(FgConst.PREF_VALUE_MONDAY)) {
