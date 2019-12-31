@@ -144,7 +144,11 @@ public class FtsHelper {
                                     productEntry.setProductID(product.getID());
                                     productEntries.add(productEntry);
                                 }
-                                downloadProductsListener.onDownload(productEntries, response.body().getDocument().getReceipt().getUser());
+                                String payee = response.body().getDocument().getReceipt().getUser();
+                                if (payee == null) {
+                                    payee = response.body().getDocument().getReceipt().getUserInn();
+                                }
+                                downloadProductsListener.onDownload(productEntries, payee);
                             }
                             break;
                         } else {
