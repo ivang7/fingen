@@ -68,6 +68,7 @@ import com.yoshione.fingen.dao.TemplatesDAO;
 import com.yoshione.fingen.dao.TransactionsDAO;
 import com.yoshione.fingen.fts.ActivityFtsLogin;
 import com.yoshione.fingen.fts.ActivityScanQR;
+import com.yoshione.fingen.fts.FTSJsonToTransaction;
 import com.yoshione.fingen.fts.FtsHelper;
 import com.yoshione.fingen.fts.IDownloadProductsListener;
 import com.yoshione.fingen.interfaces.IAbstractModel;
@@ -422,6 +423,9 @@ public class ActivityEditTransaction extends ToolbarActivity implements
         if (transaction.getTransactionType() != Transaction.TRANSACTION_TYPE_TRANSFER) {
             mLastTrType = transaction.getTransactionType();
         }
+
+        if (getIntent().hasExtra("jsonAsString")&&getIntent().getStringExtra("jsonAsString")!=null)
+            loadProductsJSON(getIntent().getStringExtra("jsonAsString"));
 
         initUI();
 
@@ -1751,6 +1755,26 @@ public class ActivityEditTransaction extends ToolbarActivity implements
                         new Intent(ActivityEditTransaction.this, ActivityFtsLogin.class),
                         RequestCodes.REQUEST_CODE_ENTER_FTS_LOGIN);
             }
+        }
+    }
+
+    private void loadProductsJSON(String jsonAsString) {
+       try
+        {
+            FTSJsonToTransaction ftsJsonToTransaction=new FTSJsonToTransaction(getApplicationContext(),transaction,jsonAsString);
+            transaction=ftsJsonToTransaction.generateTransaction(true);
+            setPayeeName(ftsJsonToTransaction.getPayerName());
+            getIntent().removeExtra("load_products");
+            fillProductList();
+            isErrorLoadingProducts=false;
+            initUI();
+        }
+        catch (Exception e)
+        {
+            isErrorLoadingProducts = true;
+            getIntent().removeExtra("load_products");
+            mTextViewLoadingProducts.setText(e.getMessage());
+            updateControlsState();
         }
     }
 
