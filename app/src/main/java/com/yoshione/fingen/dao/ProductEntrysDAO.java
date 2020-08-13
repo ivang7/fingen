@@ -2,20 +2,15 @@ package com.yoshione.fingen.dao;
 
 import android.content.Context;
 import android.database.Cursor;
-import android.util.Pair;
-
 
 import com.yoshione.fingen.DBHelper;
 import com.yoshione.fingen.interfaces.IAbstractModel;
 import com.yoshione.fingen.interfaces.IDaoInheritor;
-import com.yoshione.fingen.model.Product;
 import com.yoshione.fingen.model.ProductEntry;
 import com.yoshione.fingen.utils.Translit;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -83,9 +78,10 @@ public class ProductEntrysDAO extends BaseDAO implements AbstractDAO, IDaoInheri
         long lastCategoryID = -1;
         String sql = "SELECT CategoryID\n" +
                 "FROM log_Products as p \n" +
-                "LEFT OUTER JOIN log_Transactions t ON CategoryID = Category AND t.[_id] = TransactionID\n" +
-                "INNER JOIN ref_Products rp ON p.[_id] = ProductID\n" +
-                "WHERE rp.SearchString = '"+ Translit.toTranslit(productName).toLowerCase().replaceAll("'", "''") + "'\n" +
+                "LEFT OUTER JOIN log_Transactions t ON t.[_id] = TransactionID\n" + //CategoryID = Category AND
+                "INNER JOIN ref_Products rp ON rp.[_id] = ProductID\n" +
+                // категория могла быть указана лишь для транзакции в целом (CategoryID > 0)
+                "WHERE CategoryID > 0 AND rp.SearchString = '"+ Translit.toTranslit(productName).toLowerCase().replaceAll("'", "''") + "'\n" +
                 "ORDER BY t.DateTime DESC\n" +
                 "LIMIT 1";
         Cursor cursor;

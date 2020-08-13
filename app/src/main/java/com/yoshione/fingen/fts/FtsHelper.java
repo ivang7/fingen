@@ -10,6 +10,7 @@ import androidx.preference.PreferenceManager;
 import com.yoshione.fingen.FGApplication;
 import com.yoshione.fingen.FgConst;
 import com.yoshione.fingen.R;
+import com.yoshione.fingen.dao.ProductEntrysDAO;
 import com.yoshione.fingen.dao.ProductsDAO;
 import com.yoshione.fingen.fts.models.FtsResponse;
 import com.yoshione.fingen.fts.models.Item;
@@ -116,7 +117,7 @@ public class FtsHelper {
                             ProductsDAO productsDAO = ProductsDAO.getInstance(mContext);
                             Product product;
                             ProductEntry productEntry;
-//                            ProductEntrysDAO productEntrysDAO = ProductEntrysDAO.getInstance(mContext);
+                            ProductEntrysDAO productEntrysDAO = ProductEntrysDAO.getInstance(mContext);
                             for (Item item : items) {
 //                              product = new Product(-1, item.getName());
                                 if (item.getName() == null) {
@@ -139,7 +140,7 @@ public class FtsHelper {
                                     productEntry = new ProductEntry();
                                     productEntry.setPrice(new BigDecimal(item.getPrice() / -100d));
                                     productEntry.setQuantity(new BigDecimal(item.getQuantity()));
-//                                  productEntry.setCategoryID(productEntrysDAO.getLastCategoryID(product.getName()));
+                                    productEntry.setCategoryID(productEntrysDAO.getLastCategoryID(product.getName()));
 //                                  productEntry.setProjectID(productEntrysDAO.getLastProjectID(product.getID()));
                                     productEntry.setTransactionID(transaction.getID());
                                     productEntry.setProductID(product.getID());

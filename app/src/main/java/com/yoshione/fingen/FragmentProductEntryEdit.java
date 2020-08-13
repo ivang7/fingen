@@ -22,9 +22,11 @@ import androidx.appcompat.app.AlertDialog;
 
 import com.google.android.material.textfield.TextInputLayout;
 import com.yoshione.fingen.dao.CategoriesDAO;
+import com.yoshione.fingen.dao.ProductEntrysDAO;
 import com.yoshione.fingen.dao.ProductsDAO;
 import com.yoshione.fingen.dao.ProjectsDAO;
 import com.yoshione.fingen.interfaces.IAbstractModel;
+import com.yoshione.fingen.model.Category;
 import com.yoshione.fingen.model.Product;
 import com.yoshione.fingen.model.ProductEntry;
 import com.yoshione.fingen.widgets.AmountEditor;
@@ -263,6 +265,15 @@ public class FragmentProductEntryEdit extends DialogFragment {
             public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
                 Product product = (Product) mTextViewProduct.getAdapter().getItem(i);
                 mProductEntry.setProductID(product.getID());
+				
+				ProductEntrysDAO productEntrysDAO = ProductEntrysDAO.getInstance(context);
+                long categoryID = productEntrysDAO.getLastCategoryID(product.getName());
+
+                if (categoryID >= 0) {
+                    mProductEntry.setCategoryID(categoryID);
+                    Category category = CategoriesDAO.getInstance(context).getCategoryByID(categoryID);
+                    mTextViewCategory.setText(category.getFullName());
+                }
             }
         });
     }
