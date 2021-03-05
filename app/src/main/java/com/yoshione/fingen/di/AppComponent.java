@@ -6,6 +6,7 @@ import com.yoshione.fingen.ActivityEditTransaction;
 import com.yoshione.fingen.ActivityMain;
 import com.yoshione.fingen.ActivityPro;
 import com.yoshione.fingen.FragmentAccounts;
+import com.yoshione.fingen.FragmentSimpleDebts;
 import com.yoshione.fingen.FragmentSummary;
 import com.yoshione.fingen.FragmentTransactions;
 import com.yoshione.fingen.adapter.viewholders.TransactionViewHolderParams;
@@ -16,6 +17,7 @@ import com.yoshione.fingen.di.modules.FtsApiModule;
 import com.yoshione.fingen.di.modules.FtsHelperModule;
 import com.yoshione.fingen.di.modules.FtsRetrofitModule;
 import com.yoshione.fingen.di.modules.PreferencesModule;
+import com.yoshione.fingen.fts.ActivityFtsLogin;
 import com.yoshione.fingen.fts.FtsHelper;
 import com.yoshione.fingen.iab.BillingService;
 import com.yoshione.fingen.widgets.ToolbarActivity;
@@ -35,9 +37,11 @@ public interface AppComponent {
 	void inject(FragmentAccounts fragmentAccounts);
 	void inject(FragmentSummary fragmentSummary);
 	void inject(FragmentTransactions fragmentTransactions);
+	void inject(FragmentSimpleDebts fragmentSimpleDebts);
 	void inject(ActivityPro activityPro);
 	void inject(ToolbarActivity toolbarActivity);
 	void inject(ActivityEditTransaction activityEditTransaction);
+	void inject(ActivityFtsLogin activityFtsLogin);
 	void inject(FtsHelper ftsHelper);
 	void inject(TransactionViewHolderParams transactionViewHolderParams);
 }

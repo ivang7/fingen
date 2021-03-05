@@ -9,11 +9,6 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
-import android.preference.PreferenceManager;
-import android.support.annotation.NonNull;
-import android.support.annotation.StringRes;
-import android.support.v7.app.AlertDialog;
-import android.support.v7.widget.AppCompatCheckBox;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -22,6 +17,12 @@ import android.widget.EditText;
 import android.widget.ProgressBar;
 import android.widget.TimePicker;
 import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.StringRes;
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.widget.AppCompatCheckBox;
+import androidx.preference.PreferenceManager;
 
 import com.yoshione.fingen.dao.SendersDAO;
 import com.yoshione.fingen.interfaces.IAbstractModel;
@@ -170,7 +171,8 @@ public class ActivityImportSms extends ToolbarActivity implements IProgressEvent
         }
         calendar.setTime(mStartDate);
         dateType = view.getId();
-        DatePickerDialog dpd=new DatePickerDialog(this,
+
+        DatePickerDialog dpd = new DatePickerDialog(this,
                 this,
                 calendar.get(Calendar.YEAR),
                 calendar.get(Calendar.MONTH),

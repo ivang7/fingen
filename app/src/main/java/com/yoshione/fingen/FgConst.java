@@ -10,6 +10,7 @@ public class FgConst {
     public static final String FRAGMENT_SUMMARY = "summary";
     public static final String FRAGMENT_ACCOUNTS = "accounts";
     public static final String FRAGMENT_TRANSACTIONS = "transactions";
+    public static final String FRAGMENT_DEBTS = "loans";
     //</editor-fold>
 
     public static final int NUMBER_ITEMS_TO_BE_LOADED = 25;
@@ -33,6 +34,7 @@ public class FgConst {
     public static final String PREF_FORCE_UPDATE_ACCOUNTS = "force_update_accounts";
     public static final String PREF_FORCE_UPDATE_SUMMARY = "force_update_summary";
     public static final String PREF_FORCE_UPDATE_TRANSACTIONS = "force_update_transaction";
+    public static final String PREF_FORCE_UPDATE_DEBTS = "force_update_debts";
     public static final String PREF_SHOW_CLOSED_ACCOUNTS = "show_closed_accounts";
     public static final String PREF_SHOW_LAST_SUCCESFUL_BACKUP_TO_DROPBOX = "last_succesful_backup_to_dropbox";
 //    public static final String PREF_SHOW_SHOW_ACCOUNTS_PANEL = "show_accounts_panel";
@@ -59,6 +61,8 @@ public class FgConst {
     public static final String PREF_ENABLE_SCAN_QR = "enable_scan_qr";
     public static final String PREF_FTS_LOGIN = "fts_login";
     public static final String PREF_FTS_PASS = "fts_pass";
+    public static final String PREF_FTS_SESSION = "fts_sess";
+    public static final String PREF_FTS_TOKEN = "fts_token";
     public static final String PREF_FTS_DO_NOT_SHOW_AGAIN = "fts_do_not_show_again";
     public static final String PREF_FTS_CREDENTIALS = "fts_credentials";
     public static final String PREF_SHOW_INCOME_EXPENSE_FOR_ACCOUNTS = "show_income_expense_for_accounts";
