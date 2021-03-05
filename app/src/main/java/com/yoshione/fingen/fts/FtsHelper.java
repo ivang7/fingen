@@ -149,7 +149,7 @@ public class FtsHelper {
                     productEntry = new ProductEntry();
                     productEntry.setPrice(new BigDecimal(item.getPrice() / -100d));
                     productEntry.setQuantity(new BigDecimal(item.getQuantity()));
-//                                  productEntry.setCategoryID(productEntrysDAO.getLastCategoryID(product.getName()));
+                    productEntry.setCategoryID(productEntrysDAO.getLastCategoryID(product.getName()));
 //                                  productEntry.setProjectID(productEntrysDAO.getLastProjectID(product.getID()));
                     productEntry.setTransactionID(transaction.getID());
                     productEntry.setProductID(product.getID());
