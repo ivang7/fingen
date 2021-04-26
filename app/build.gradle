@@ -11,12 +11,12 @@ android {
     compileSdkVersion 29
     buildToolsVersion '29.0.2'
     defaultConfig {
-        applicationId "com.yoshione.fingen"
+        applicationId "com.yoshione.fingenx"
         minSdkVersion 21
         targetSdkVersion 28
         versionCode 132
         versionName "2.6.4.2"
-        resValue "string", "app_name", "Fingen"
+        resValue "string", "app_name", "FingenX"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
