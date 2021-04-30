@@ -260,6 +260,7 @@ public abstract class BaseDAO<T extends IAbstractModel> implements AbstractDAO<T
 
     @Override
     public IAbstractModel getModelByName(String name) {
+        name = name.replaceAll("'","''");
         Cursor cursor = mDatabase.query(mTableName, getAllColumns(),
                 COL_SYNC_DELETED + " = 0 AND " + COL_NAME + " = '" + name + "'", null, null, null, null);
         IAbstractModel model = null;
