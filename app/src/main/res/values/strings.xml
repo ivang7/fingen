@@ -2164,6 +2164,10 @@
 
     <!-- 27. Products -->
     <!-- Titles -->
+    <string name="ttl_404" formatted="false">Page not found.</string>
+
+    <!-- 27. Products -->
+    <!-- Titles -->
     <string name="ttl_checking_data" formatted="false">Checking input data...</string>
 
     <!-- 27. Products -->

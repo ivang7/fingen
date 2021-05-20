@@ -2164,6 +2164,10 @@
 
     <!-- 27. Products -->
     <!-- Titles -->
+    <string name="ttl_404" formatted="false">Страница не найдена.</string>
+
+    <!-- 27. Products -->
+    <!-- Titles -->
     <string name="ttl_checking_data" formatted="false">Проверка введенных данных…</string>
 
     <!-- 27. Products -->
