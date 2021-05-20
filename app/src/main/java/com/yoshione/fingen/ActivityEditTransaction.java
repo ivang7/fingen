@@ -1718,8 +1718,6 @@ public class ActivityEditTransaction extends ToolbarActivity implements
 
                 @Override
                 public void onAccepted(Object response) {
-                    mTextViewLoadingProducts.setText(R.string.ttl_check_correct);
-
                     IFtsCallback addCallback = new IFtsCallback() {
                         @Override
                         public void onAccepted(Object response) {
@@ -1727,6 +1725,15 @@ public class ActivityEditTransaction extends ToolbarActivity implements
 
                             Ticket body = (Ticket) response;
                             final String ticketId = body.getId();
+                            if (body.getStatus() == 8) {
+                                isErrorLoadingProducts = true;
+                                getIntent().removeExtra(LOAD_PRODUCTS);
+                                mImageViewLoadingProducts.clearAnimation();
+                                mImageViewLoadingProducts.setVisibility(View.GONE);
+                                mTextViewLoadingProducts.setText(R.string.err_loading_products);
+                                updateControlsState();
+                                return;
+                            }
 
                             IFtsCallback getCallback = new IFtsCallback() {
                                 @Override
@@ -1852,6 +1859,8 @@ public class ActivityEditTransaction extends ToolbarActivity implements
 
                 @Override
                 public void onFailure(String errMsg, int responseCode) {
+                    if (responseCode == 404)
+                        errMsg = getString(R.string.ttl_404);
                     isErrorLoadingProducts = true;
                     getIntent().removeExtra(LOAD_PRODUCTS);
                     mImageViewLoadingProducts.clearAnimation();
@@ -1861,7 +1870,7 @@ public class ActivityEditTransaction extends ToolbarActivity implements
                 }
             };
             getIntent().putExtra(LOAD_PRODUCTS, LP_RECEIVING);
-            unsubscribeOnDestroy(mFtsHelper.isCheckExists(transaction, checkCallback));
+            checkCallback.onAccepted(null);
         } else {
             mLayoutLoadingProducts.setVisibility(View.GONE);
             fillProductList();

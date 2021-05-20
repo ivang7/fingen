@@ -498,9 +498,8 @@ public class ActivityMain extends ToolbarActivity {
             if ("text/html".equals(type)) {
                 Uri jsonUri = getIntent().getParcelableExtra(Intent.EXTRA_STREAM);
                 if (jsonUri != null) {
-                    File fl = new File(jsonUri.getPath());
                     try {
-                        FileInputStream fin = new FileInputStream(fl);
+                        FileInputStream fin = new FileInputStream(getApplicationContext().getContentResolver().openFileDescriptor(jsonUri, "r").getFileDescriptor());
                         String ret = convertStreamToString(fin);
                         fin.close();
                         Transaction transaction = new Transaction(-1);

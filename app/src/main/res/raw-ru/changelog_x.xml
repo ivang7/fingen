@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <changelog bulletedList="true">
+    <changelogversion versionName="2.6.4.2-x.8" changeDate=">2021.05.20">
+        <changelogtext>Исправлена ошибка при получении электронного чека из ФНС из-за изменения API</changelogtext>
+        <changelogtext>Исправлено создание транзакции через json файл из приложения ФНС</changelogtext>
+        <changelogtext>Добавил отображение кнопок управления транзакциями в выбранном счете</changelogtext>
+        <changelogtext>(Screamer_dot) Подсчет долгов во вкладке пересмотрен, добавлена обработка поиска (не проверял)</changelogtext>
+    </changelogversion>
     <changelogversion versionName="2.6.4.2-x.7" changeDate=">2020.08.16">
         <changelogtext>Исправлен поиск кириллицей в справочниках</changelogtext>
         <changelogtext>Добавлена обработка некоторых специфических типов электронных чеков из ФНС</changelogtext>
