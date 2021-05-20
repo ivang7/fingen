@@ -5,6 +5,7 @@ public class Ticket {
     private String qr;
     private Seller seller;
     private TicketQuery query;
+    private Integer status;
 
     public String getId() {
         return id;
@@ -38,6 +39,14 @@ public class Ticket {
         this.query = query;
     }
 
+    public Integer getStatus() {
+        return status;
+    }
+
+    public void setStatus(Integer status) {
+        this.status = status;
+    }
+
     @Override
     public String toString() {
         return "Ticket{" +
@@ -45,6 +54,7 @@ public class Ticket {
                 ", qr='" + qr + '\'' +
                 ", seller=" + seller +
                 ", query=" + query +
+                ", status=" + status +
                 '}';
     }
 }
