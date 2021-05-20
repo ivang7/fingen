@@ -2,6 +2,7 @@
 <changelog bulletedList="true">
     <changelogversion versionName="2.6.4.2-x.8" changeDate=">2021.05.20">
         <changelogtext>Fix error when check e-receipt from FNS (changes API)</changelogtext>
+        <changelogtext>Fix creating transaction by json file from FNS</changelogtext>
         <changelogtext>Add manage transaction buttons to selected account activity</changelogtext>
         <changelogtext>(Screamer_dot) Selected debts calculation completed (no check)</changelogtext>
     </changelogversion>
