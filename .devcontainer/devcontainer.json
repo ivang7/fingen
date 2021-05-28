@@ -1,12 +1,8 @@
 {
 	"name": "Android",
-	"build": {
-		"dockerfile": "Dockerfile",
-		"args": {
-			// Need to use JDK 8 because of sdkmanager
-			"JDK_VARIANT": "8"
-		}
-	},
+	"dockerComposeFile": "docker-compose.yml",
+	"service": "app",
+	"workspaceFolder": "/workspace",
 
 	// Set *default* container specific settings.json values on container create.
 	"settings": { 
@@ -19,5 +15,10 @@
 		"vscjava.vscode-java-pack",
 		"adelphes.android-dev-ext",
 		"eamodio.gitlens"
-	]
+	],
+	"portsAttributes": {
+		"6080": {
+			"label": "emulator"
+		}
+	}
 }
